@@ -1,0 +1,19 @@
+apiVersion : apps/v1
+kind: Deployment
+metadata:
+  name: "kubcloudstest-abf6"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: "kubcloudstest-abf6"
+  template:
+    metadata:
+      labels:
+        app: "kubcloudstest-abf6"
+    spec:
+      containers:
+        - name: "kubcloudstest-abf6"
+          image: "contestclouds.azurecr.io/kubcloudstest"
+          ports:
+          - containerPort: 8080
