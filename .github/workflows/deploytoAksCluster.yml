@@ -1,0 +1,50 @@
+on: [push]
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    
+    - uses: azure/docker-login@v1
+      with:
+        login-server: contestclouds.azurecr.io
+        username: ${{ secrets.acr_contestclouds_username }}
+        password: ${{ secrets.acr_contestclouds_password }}
+    
+    - name: Build and push image to ACR
+      id: build-image
+      run: |
+        docker build "$GITHUB_WORKSPACE/contestclouds" -f  "doctest" -t contestclouds.azurecr.io/kubcloudstest:${{ github.sha }} --label dockerfile-path=doctest
+        docker push contestclouds.azurecr.io/kubcloudstest:${{ github.sha }}
+    
+    - uses: azure/k8s-set-context@v1
+      with:
+         kubeconfig: ${{ secrets.aks_kubcloudstest_kubeConfig }}
+      id: login
+    
+    - name: Create namespace
+      run: |
+        namespacePresent=`kubectl get namespace | grep kubcloudstest9847 | wc -l`
+        if [ $namespacePresent -eq 0 ]
+        then
+            echo `kubectl create namespace kubcloudstest9847`
+        fi
+
+    - uses: azure/k8s-create-secret@v1
+      with:
+        namespace: kubcloudstest9847
+        container-registry-url: contestclouds.azurecr.io
+        container-registry-username: ${{ secrets.acr_contestclouds_username }}
+        container-registry-password: ${{ secrets.acr_contestclouds_password }}
+        secret-name: kubcloudstesdockerauth
+       
+    - uses: azure/k8s-deploy@v1.2
+      with:
+        namespace: kubcloudstest9847
+        manifests: |
+          manifests/deployment.yml
+          manifests/service.yml
+        images: |
+          contestclouds.azurecr.io/kubcloudstest:${{ github.sha }}
+        imagepullsecrets: |
+          kubcloudstesdockerauth
